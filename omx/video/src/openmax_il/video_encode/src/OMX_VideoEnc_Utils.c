@@ -41,7 +41,8 @@
 *! Revision History
 *! =============================================================================
 *!
-*! 02-Feb-2006 mf: Revisions appear in reverse chronoALOGIcal order;
+*! 24-Jul-2012 : jellybean branch by CyanogenDefy Team
+*! 02-Feb-2006 mf: Revisions appear in reverse chronological order;
 *! that is, newest first.  The date format is dd-Mon-yyyy.
 * ============================================================================*/
 
