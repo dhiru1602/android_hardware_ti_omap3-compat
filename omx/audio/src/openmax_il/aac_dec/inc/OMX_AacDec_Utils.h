@@ -261,7 +261,7 @@
     #define AACDEC_MEMPRINT(...)
 #endif
 
-#define AACDEC_EPRINT LOGE
+#define AACDEC_EPRINT ALOGE
 
 #endif
 
