@@ -37,7 +37,7 @@
 *! ===================================
 *! 
 *!
-*! 02-Dec-2005 mf: Revisions appear in reverse chronological order; 
+*! 02-Dec-2005 mf: Revisions appear in reverse chronoALOGIcal order; 
 *! that is, newest first.  The date format is dd-Mon-yyyy.  
 * ================================================================================= */
 
@@ -97,7 +97,12 @@
 #define MAX_MPEG4D_OUT_BUFFERS 1
 #define MAX_VPP_BUFFERS 4
 
-#define DSP_MMU_FAULT_HANDLING
+/* Remove the DSP Fault Handling Code
+ * */
+#ifdef DSP_MMU_FAULT_HANDLING
+   #undef DSP_MMU_FAULT_HANDLING
+#endif
+
 
 #define OMX_CONF_INIT_STRUCT(_s_, _name_)  \
 { \

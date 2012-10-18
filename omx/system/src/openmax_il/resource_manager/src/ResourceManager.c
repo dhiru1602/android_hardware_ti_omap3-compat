@@ -44,7 +44,7 @@
 * ============================================================================= */
 #include <unistd.h>     // for sleep
 #include <stdlib.h>     // for calloc
-#include <sys/time.h>   // time is part of the select logic
+#include <sys/time.h>   // time is part of the select ALOGIc
 #include <sys/types.h>  // for opening files
 #include <sys/ioctl.h>  // for ioctl support
 #include <sys/file.h>
@@ -75,8 +75,8 @@ PERF_OBJHANDLE pPERF = NULL;
 #include <pthread.h>
 #include <signal.h>
 
-#undef ALOG_TAG
-#define ALOG_TAG "OMXRM"
+#undef LOG_TAG
+#define LOG_TAG "OMXRM"
 
 RM_ComponentList componentList;
 RM_ComponentList pendingComponentList;

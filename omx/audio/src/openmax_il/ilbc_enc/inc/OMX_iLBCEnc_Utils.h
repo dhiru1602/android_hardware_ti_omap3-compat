@@ -331,7 +331,7 @@ enum ILBCENC_StreamType {
 
 /* ======================================================================= */
 /**
- * @def _ERROR_PROPAGATION__     Allow Logic to Detec&Report Arm Errors
+ * @def _ERROR_PROPAGATION__     Allow ALOGIc to Detec&Report Arm Errors
  */
 /* ======================================================================= */
 #define _ERROR_PROPAGATION__
@@ -1078,10 +1078,9 @@ typedef enum OMX_ILBCENC_INDEXAUDIOTYPE {
 OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM_BUFFER_OBJ* pDmmBuf);
 OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr);
 
-
 typedef enum
 {
-    ALGCMD_BITRATE = 100, //IUALG_CMD_USERSETCMDSTART
+    ALGCMD_BITRATE = IUALG_CMD_USERSETCMDSTART,
     ALGCMD_DTX
 
 } eSPEECHENCODE_AlgCmd;

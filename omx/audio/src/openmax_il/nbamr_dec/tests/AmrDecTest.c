@@ -187,7 +187,7 @@ FILE *fpRes = NULL;
 
 /* ======================================================================= */
 /**
- * @def    APP_DEBUGMEM    This Macro turns On the logic to detec memory
+ * @def    APP_DEBUGMEM    This Macro turns On the ALOGIc to detec memory
  *                         leaks on the App. To debug the component, 
  *                         NBAMRDEC_DEBUGMEM must be defined.
  */

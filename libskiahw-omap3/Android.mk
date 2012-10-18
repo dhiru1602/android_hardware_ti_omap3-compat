@@ -6,7 +6,7 @@ TI_OMX_IMAGE  := $(TI_OMX_TOP)/image/src/openmax_il
 TI_OMX_SYSTEM := $(TI_OMX_TOP)/system/src/openmax_il
 
 TI_BRIDGE_TOP := $(ANDROID_BUILD_TOP)/hardware/ti/omap3/dspbridge
-TI_BRIDGE_INCLUDES := $(TI_BRIDGE_TOP)/libbridge/inc
+TI_BRIDGE_INCLUDES := $(TI_BRIDGE_TOP)/inc
 
 TI_OMX_COMP_C_INCLUDES ?= \
 	$(TI_OMX_TOP)/lcml/inc \

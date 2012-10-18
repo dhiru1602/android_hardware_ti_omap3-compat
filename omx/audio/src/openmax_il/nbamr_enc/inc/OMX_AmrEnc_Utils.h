@@ -65,7 +65,7 @@
 #include "OMX_TI_Common.h"
 #include "OMX_TI_Debug.h"
 #include <TIDspOmx.h>
-
+#include "usn.h"
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
 #endif
@@ -78,10 +78,6 @@
     #include <AudioManagerAPI.h>
 #endif
 
-#ifdef UNDER_CE
-    #define sleep Sleep
-#endif
-
 #ifndef ANDROID
     #define ANDROID
 #endif
@@ -89,6 +85,9 @@
 #ifdef ANDROID
     #undef LOG_TAG
     #define LOG_TAG "OMX_NBAMRENC"
+//    #define LOG_TAG "nbamr_enc"
+    /* PV opencore capability custom parameter index */
+    #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
 #endif
 
 /* ======================================================================= */
@@ -118,25 +117,17 @@
  * @def    AMRENC_EPRINT   Error print macro
  */
 /* ======================================================================= */
-#ifndef UNDER_CE
     #ifdef ANDROID
         #define AMRENC_EPRINT ALOGE
     #else   
         #define AMRENC_EPRINT(...)    fprintf(stderr,__VA_ARGS__)
     #endif
-#else
-        #define AMRENC_EPRINT
-#endif
-
-
 
 /* ======================================================================= */
 /**
  * @def    AMRENC_DEBUG   Debug print macro
  */
 /* ======================================================================= */
-#ifndef UNDER_CE
-
 #ifdef  AMRENC_DEBUG
         #define AMRENC_DPRINT(...)    fprintf(stderr,__VA_ARGS__)
 
@@ -165,47 +156,6 @@
 
 #else
         #define AMRENC_MEMPRINT(...)    printf
-#endif
-
-#else   /*UNDER_CE*/
-/* ======================================================================= */
-/**
- * @def    AMRENC_DEBUG   Debug print macro
- */
-/* ======================================================================= */
-#ifdef  AMRENC_DEBUG
-        #define AMRENC_DPRINT(STR, ARG...) printf()
-#else
-
-#endif
-/* ======================================================================= */
-/**
- * @def    AMRENC_MEMCHECK   Memory print macro
- */
-/* ======================================================================= */
-#ifdef  AMRENC_MEMCHECK
-        #define AMRENC_MEMPRINT(STR, ARG...) printf()
-#else
-
-#endif
-
-#ifdef UNDER_CE
-
-#ifdef DEBUG
-    #ifdef ANDROID
-        #define AMRENC_DPRINT     ALOGW
-        #define AMRENC_MEMPRINT   ALOGW
-    #else
-        #define AMRENC_DPRINT     printf
-        #define AMRENC_MEMPRINT   printf
-    #endif
-#else
-        #define AMRENC_DPRINT
-        #define AMRENC_MEMPRINT
-#endif
-
-#endif  /*UNDER_CE*/
-
 #endif
 
 /* ======================================================================= */
@@ -237,6 +187,14 @@
     OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d : Error Name: %s : Error Num = %x",__LINE__, _s_, _e_);\
     OMXDBG_PRINT(stderr, ERROR, 4, 0, "\n**************** OMX ERROR ************************\n");\
     goto EXIT;
+
+#define NBAMRENC_OMX_CONF_CHECK_CMD(_ptr1, _ptr2, _ptr3)   \
+    {                                                   \
+        if(!_ptr1 || !_ptr2 || !_ptr3){                 \
+            OMXDBG_PRINT(stderr, ERROR, 4, 0, "%d : NBAMRENC_OMX_CONF_CHECK_CMD - Invalid Pointer",__LINE__);\
+            return OMX_ErrorBadParameter;             \
+        }                                               \
+    }
 
 /* ======================================================================= */
 /**
@@ -322,6 +280,12 @@
 #define NBAMRENC_MAX_NUM_OF_BUFS 15
 /* ======================================================================= */
 /**
+ * @def    NBAMRENC_MAX_NUM_OF_FRAMES   Maximum number of frames from PV
+ */
+/* ======================================================================= */
+#define NBAMRENC_MAX_NUM_OF_FRAMES 10
+/* ======================================================================= */
+/**
  * @def    NBAMRENC_NUM_OF_PORTS   Number of ports
  */
 /* ======================================================================= */
@@ -374,22 +338,14 @@
  * @def    NBAMRENC_USN_DLL_NAME   USN DLL name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-    #define NBAMRENC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
-    #define NBAMRENC_USN_DLL_NAME "usn.dll64P"
-#endif
+#define NBAMRENC_USN_DLL_NAME "usn.dll64P"
 
 /* ======================================================================= */
 /**
  * @def    NBAMRENC_DLL_NAME   NBAMR Encoder socket node dll name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-    #define NBAMRENC_DLL_NAME "\\windows\\nbamrenc_sn.dll64P"
-#else
-    #define NBAMRENC_DLL_NAME "nbamrenc_sn.dll64P"
-#endif
+#define NBAMRENC_DLL_NAME "nbamrenc_sn.dll64P"
 
 /* ======================================================================= */
 /** NBAMRENC_StreamType  Stream types
@@ -486,11 +442,23 @@ enum NBAMRENC_MimeMode {
 
 /* ======================================================================= */
 /**
- * @def _ERROR_PROPAGATION__     Allow Logic to Detec&Report Arm Errors
+ * @def _ERROR_PROPAGATION__     Allow ALOGIc to Detec&Report Arm Errors
  */
 /* ======================================================================= */
 #define _ERROR_PROPAGATION__
 
+
+typedef struct PV_OMXComponentCapabilityFlagsType
+{
+        ////////////////// OMX COMPONENT CAPABILITY RELATED MEMBERS (for opencore compatability)
+        OMX_BOOL iIsOMXComponentMultiThreaded;
+        OMX_BOOL iOMXComponentSupportsExternalOutputBufferAlloc;
+        OMX_BOOL iOMXComponentSupportsExternalInputBufferAlloc;
+        OMX_BOOL iOMXComponentSupportsMovableInputBuffers;
+        OMX_BOOL iOMXComponentSupportsPartialFrames;
+        OMX_BOOL iOMXComponentNeedsNALStartCode;
+        OMX_BOOL iOMXComponentCanHandleIncompleteFrames;
+} PV_OMXComponentCapabilityFlagsType;
 /* ======================================================================= */
 /** NBAMRENC_COMP_PORT_TYPE  Port types
  *
@@ -656,19 +624,6 @@ typedef struct NBAMRENC_PORT_TYPE {
     OMX_U8 nBufferCnt;
     OMX_AUDIO_PARAM_PORTFORMATTYPE* pPortFormat;
 } NBAMRENC_PORT_TYPE;
-
-#ifdef UNDER_CE
-    #ifndef _OMX_EVENT_
-        #define _OMX_EVENT_
-        typedef struct OMX_Event {
-            HANDLE event;
-        } OMX_Event;
-    #endif
-    int OMX_CreateEvent(OMX_Event *event);
-    int OMX_SignalEvent(OMX_Event *event);
-    int OMX_WaitForEvent(OMX_Event *event);
-    int OMX_DestroyEvent(OMX_Event *event);
-#endif
 
 /* =================================================================================== */
 /**
@@ -838,7 +793,9 @@ typedef struct AMRENC_COMPONENT_PRIVATE
     OMX_S32 nOutStandingFillDones;
     OMX_S32 nOutStandingEmptyDones;
 
-#ifndef UNDER_CE
+    // Flag to set when mutexes are initialized
+    OMX_BOOL bMutexInitialized;
+
     pthread_mutex_t AlloBuf_mutex;
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -861,16 +818,6 @@ typedef struct AMRENC_COMPONENT_PRIVATE
     OMX_BOOL bFlushInputPortCommandPending;
 
     pthread_mutex_t ToLoaded_mutex;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded;
-#endif
 
     OMX_U8 nNumOfFramesSent;
 
@@ -887,6 +834,7 @@ typedef struct AMRENC_COMPONENT_PRIVATE
     OMX_BUFFERHEADERTYPE *LastOutbuf;
     OMX_BOOL bIsInvalidState;
     
+    OMX_BOOL MMUFault;
     OMX_STRING* sDeviceString;
     
     void* ptrLibLCML;
@@ -910,21 +858,13 @@ typedef struct AMRENC_COMPONENT_PRIVATE
     
     OMX_PARAM_COMPONENTROLETYPE componentRole;
     OMX_U32 teeMode;
+    PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
 
     struct OMX_TI_Debug dbg;
 
-    /* Reference count for pending state change requests */
-    OMX_U32 nPendingStateChangeRequests;
-    pthread_mutex_t mutexStateChangeRequest;
-    pthread_cond_t StateChangeCondition;
 } AMRENC_COMPONENT_PRIVATE;
 
 
-#ifndef UNDER_CE
-    OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
 /* =================================================================================== */
 /**
 *  OMX_ComponentInit()  Initializes component
@@ -937,8 +877,7 @@ typedef struct AMRENC_COMPONENT_PRIVATE
 *
 */
 /* =================================================================================== */
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#endif
+OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
 /* =================================================================================== */
 /**
 *  NBAMRENC_StartComponentThread()  Starts component thread
@@ -1202,20 +1141,8 @@ OMX_ERRORTYPE OMX_DmmMap(DSP_HPROCESSOR ProcHandle, int size, void* pArmPtr, DMM
 OMX_ERRORTYPE OMX_DmmUnMap(DSP_HPROCESSOR ProcHandle, void* pMapPtr, void* pResPtr, struct OMX_TI_Debug dbg);
 
 void NBAMRENC_HandleUSNError (AMRENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
-OMX_ERRORTYPE AddStateTransition(AMRENC_COMPONENT_PRIVATE *pComponentPrivate);
-OMX_ERRORTYPE RemoveStateTransition(AMRENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_BOOL bEnableSignal);
 
-/*===============================================================*/
-
-typedef enum {
-    IUALG_CMD_STOP             = 0,
-    IUALG_CMD_PAUSE            = 1,
-    IUALG_CMD_GETSTATUS        = 2,
-    IUALG_CMD_SETSTATUS        = 3,
-    IUALG_CMD_USERSETCMDSTART  = 100,
-    IUALG_CMD_USERGETCMDSTART  = 150,
-    IUALG_CMD_FLUSH            = 0x100
-}IUALG_Cmd;
+void NBAMRENC_FatalErrorRecover(AMRENC_COMPONENT_PRIVATE *pComponentPrivate);
 
 typedef enum
 {

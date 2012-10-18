@@ -40,7 +40,7 @@
 *! Revision History 
 *! ================================================================
 *!
-*! 10-Mar-2009 lm: Revisions appear in reverse chronological order; 
+*! 10-Mar-2009 lm: Revisions appear in reverse chronoALOGIcal order; 
 *! that is, newest first.  The date format is dd-Mon-yyyy.
 * =========================================================================== */
 
@@ -97,13 +97,13 @@
  */
 #define __OMX_DEBUG__
 #undef  __OMX_DBG_COLOR__
-#define __OMX_DBG_FILE__
+#undef  __OMX_DBG_FILE__
 #define __OMX_DBG_FN__
 #define __OMX_DBG_LINE__
 #undef  __OMX_DBG_DOMAIN__
 #undef  __OMX_DBG_LEVEL__
 #undef  __OMX_DBG_4ISERROR__
-#define __OMX_DBG_ANDROID__
+#undef  __OMX_DBG_ANDROID__
 
 /*
  *  OMX Debug levels specify the importance of the debug print
@@ -120,12 +120,7 @@
  */
 
 /* this is used as a bitmask currently, so must be 2^n-1 */
-#define OMX_DBG_MAX_LEVEL 0x0f
-
-#ifdef DEBUG_LOG
-#undef OMX_DBG_MAX_LEVEL
-#define OMX_DBG_MAX_LEVEL 0x01
-#endif
+#define OMX_DBG_MAX_LEVEL 0x0F
 
 /*
  *  OMX Debug domains specify the system that the messages relate to
@@ -559,6 +554,7 @@ char file[mem_array_size][50];
 
 #define newmalloc(x) mymalloc(__LINE__,__FILE__,x)
 #define newfree(z) myfree(z,__LINE__,__FILE__)
+#define newmemalign(x) mymemalign(__LINE__,__FILE__,x,y)
 
 void * mymalloc(int line, char *s, int size);
 int myfree(void *dp, int line, char *s);
@@ -604,10 +600,34 @@ int myfree(void *dp, int line, char *s){
      }
 }
 
+void * mymemalign(int line, char *s, int alignment, int size)
+{
+   void *p;
+   int e=0;
+   p = memalign(alignment,size);
+   if(p==NULL){
+       OMXDBG_PRINT(stderr, ERROR, 4, 0, "Memory not available\n");
+       /* ddexit(1); */
+       }
+   else{
+         while((lines[e]!=0)&& (e<(mem_array_size - 1)) ){
+              e++;
+         }
+         arr[e]=p;
+         lines[e]=line;
+         bytes[e]=size;
+         strcpy(file[e],s);
+         OMXDBG_PRINT(stderr, BUFFER, 2, 0,
+            "Allocating %d bytes on address %p, line %d file %s pos %d\n", size, p, line, s, e);
+   }
+   return p;
+}
+
 #else
 
 #define newmalloc(x) malloc(x)
 #define newfree(z) free(z)
+#define newmemalign(x,y) memalign(x,y)
 
 #endif
 
