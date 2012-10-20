@@ -44,7 +44,7 @@
 /* The position of the Deblocking Enable/Disable Switch
  * */
 #define DEBLOCKING_ARG_POS (15)
-/* The position of the MB Error Logic Switch
+/* The position of the MB Error LOGIc Switch
  * */
 #define MB_ERROR_LOGIC_SWITCH_POS (16)
 /* Make Private the Routine that Sets Deblocking
@@ -2289,16 +2289,16 @@ int NormalRunningTest(int argc, char** argv, MYDATATYPE *pTempAppData)
         * */
        pAppData->deblockSW = !0;
     }
-    /* Set/Clear the MB Error Checking logic
+    /* Set/Clear the MB Error Checking LOGIc
      * */
     if (argc > MB_ERROR_LOGIC_SWITCH_POS && pAppData->nTestCase != 10){
-        pAppData->MB_Error_Logic_Switch = atoi(argv[MB_ERROR_LOGIC_SWITCH_POS]);
+        pAppData->MB_Error_LOGIc_Switch = atoi(argv[MB_ERROR_LOGIC_SWITCH_POS]);
     }
     else {
        /* If the parameter is not provided the macroblock error information will
         * be Disabled.
         * */
-        pAppData->MB_Error_Logic_Switch = 0;
+        pAppData->MB_Error_LOGIc_Switch = 0;
     }
 #ifdef __GET_BC_VOP__
     if( pAppData->nTestCase == 10 ){
@@ -3005,11 +3005,11 @@ int NormalRunningTest(int argc, char** argv, MYDATATYPE *pTempAppData)
         /***************** MBError Code ********************/
         /* Propagate MBError Enable Code Switch to OMX IL
          * */
-        if (pAppData->nTestCase == TESTCASE_TYPE_MBERRORCHECK || pAppData->MB_Error_Logic_Switch) {
+        if (pAppData->nTestCase == TESTCASE_TYPE_MBERRORCHECK || pAppData->MB_Error_LOGIc_Switch) {
             OMX_PARAM_MACROBLOCKSTYPE pMBBlocksType;
             APP_PRINT("MBError Test Case -> %d\n",pAppData->nTestCase);
             if (pAppData->nTestCase == TESTCASE_TYPE_MBERRORCHECK) {
-               pAppData->MB_Error_Logic_Switch = 1;
+               pAppData->MB_Error_LOGIc_Switch = 1;
             }
             memset(&pMBBlocksType, 0, sizeof(OMX_PARAM_MACROBLOCKSTYPE));
             pMBBlocksType.nSize                     = sizeof(OMX_PARAM_MACROBLOCKSTYPE);
@@ -3029,9 +3029,9 @@ int NormalRunningTest(int argc, char** argv, MYDATATYPE *pTempAppData)
             pMBErrorType.nVersion.s.nVersionMinor  = VERSION_MINOR;
             pMBErrorType.nVersion.s.nRevision      = VERSION_REVISION;
             pMBErrorType.nVersion.s.nStep          = VERSION_STEP;
-            /* Enable/Disable MB Error Logic on Below Layers
+            /* Enable/Disable MB Error LOGIc on Below Layers
              * */
-            pMBErrorType.bEnabled         = pAppData->MB_Error_Logic_Switch;
+            pMBErrorType.bEnabled         = pAppData->MB_Error_LOGIc_Switch;
             eError = OMX_SetConfig(pAppData->pHandle, OMX_IndexConfigVideoMBErrorReporting, &pMBErrorType);
             if (eError != OMX_ErrorNone) {
                 APP_PRINT("Not Supported setting %x\n",eError);
@@ -3360,9 +3360,9 @@ int NormalRunningTest(int argc, char** argv, MYDATATYPE *pTempAppData)
                     else if(pAppData->nTestCase == TESTCASE_TYPE_PROP_TIMESTAMPS) {
                         APP_PRINT("Out TimeStamp %lld for output Buffer 0x%x\n", pBuf->nTimeStamp, (unsigned int)pBuf);
                     }
-                    /* If the MB Error logic is enabled, print the MB Errors
+                    /* If the MB Error LOGIc is enabled, print the MB Errors
                      * */
-                    if (pAppData->MB_Error_Logic_Switch){
+                    if (pAppData->MB_Error_LOGIc_Switch){
                        MBErrorPrintRoutine(pAppData->pHandle, &bMBErrorCount, pAppData);
                     }
                     if ((pBuf->nFlags & OMX_BUFFERFLAG_EOS) == 0) {
@@ -3599,10 +3599,10 @@ int NormalRunningTest(int argc, char** argv, MYDATATYPE *pTempAppData)
                  else{
                      APP_PRINT("Deblocking is: DISABLED\n");
                  }
-                 /* If the MB Error Code Logic is Enabled Print the Error Num.
+                 /* If the MB Error Code LOGIc is Enabled Print the Error Num.
                   * */
                  /***************** MBError Code ********************/
-                 if (pAppData->nTestCase == TESTCASE_TYPE_MBERRORCHECK || pAppData->MB_Error_Logic_Switch){
+                 if (pAppData->nTestCase == TESTCASE_TYPE_MBERRORCHECK || pAppData->MB_Error_LOGIc_Switch){
                     if (bMBErrorCount == 0){
                        APP_PRINT("MBErrors Didn't Occur\n");
                     }

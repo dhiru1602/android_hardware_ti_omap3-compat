@@ -51,14 +51,12 @@
     #include "perf.h"
 #endif
 
-#ifndef UNDER_CE
 #ifdef DSP_RENDERING_ON
 #include <AudioManagerAPI.h>
 #endif
  
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
-#endif
 #endif
 
 #ifndef ANDROID
@@ -68,6 +66,9 @@
 #ifdef ANDROID
     #undef LOG_TAG
     #define LOG_TAG "OMX_WBAMRDEC"
+
+/* PV opencore capability custom parameter index */
+    #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
 #endif
 
 /* =======================================================================
@@ -210,10 +211,6 @@ typedef enum WBAMR_DEC_COMP_PORT_TYPE {
 /*#define WBAMRDEC_DEBUGMEM*/
 
 
-#ifdef UNDER_CE
-#define sleep Sleep
-#endif
-
 /* ======================================================================= */
 /**
  * @def    WBAMR_DEC_NUM_OF_PORTS   Number of ports
@@ -223,7 +220,7 @@ typedef enum WBAMR_DEC_COMP_PORT_TYPE {
 
 /* ======================================================================= */
 /**
- * @def    _ERROR_PROPAGATION__              Allow Logic to Detec Arm Errors 
+ * @def    _ERROR_PROPAGATION__              Allow LOGIc to Detec Arm Errors 
  */
 /* ======================================================================= */
 #define _ERROR_PROPAGATION__ 
@@ -251,14 +248,6 @@ typedef enum OMX_INDEXAUDIOTYPE_WBAMRDEC {
     OMX_IndexCustomWbAmrDecNextFrameLost,
     OMX_IndexCustomDebug
 }OMX_INDEXAUDIOTYPE_WBAMRDEC;
-
-/* ======================================================================= */
-/**
- * pthread variable to indicate OMX returned all buffers to app 
- */
-/* ======================================================================= */
-pthread_mutex_t bufferReturned_mutex; 
-pthread_cond_t bufferReturned_condition; 
 
 /* ======================================================================= */
 /** WBAMR_DEC_StreamType  Stream types
@@ -387,13 +376,6 @@ typedef struct LCML_WBAMR_DEC_BUFHEADERTYPE {
       DMM_BUFFER_OBJ* pDmmBuf;
 }LCML_WBAMR_DEC_BUFHEADERTYPE;
 
-#ifndef UNDER_CE
-
-OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
 /* ===========================================================  */
 /**
 *  OMX_ComponentInit()  Initializes component
@@ -406,10 +388,7 @@ OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
 *
 */
 /*================================================================== */
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-
-#endif
-
+OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
 /* =================================================================================== */
 /**
 * Instrumentation info
@@ -429,14 +408,19 @@ struct WBAMRDEC_BUFFERLIST{
     OMX_U32 bBufferPending[WBAMR_DEC_MAX_NUM_OF_BUFS];
     OMX_U16 numBuffers;
 };
-#ifdef UNDER_CE
-    #ifndef _OMX_EVENT_
-        #define _OMX_EVENT_
-        typedef struct OMX_Event {
-            HANDLE event;
-        } OMX_Event;
-    #endif
-#endif
+
+typedef struct PV_OMXComponentCapabilityFlagsType
+{
+        ////////////////// OMX COMPONENT CAPABILITY RELATED MEMBERS (for opencore compatability)
+        OMX_BOOL iIsOMXComponentMultiThreaded;
+        OMX_BOOL iOMXComponentSupportsExternalOutputBufferAlloc;
+        OMX_BOOL iOMXComponentSupportsExternalInputBufferAlloc;
+        OMX_BOOL iOMXComponentSupportsMovableInputBuffers;
+        OMX_BOOL iOMXComponentSupportsPartialFrames;
+        OMX_BOOL iOMXComponentNeedsNALStartCode;
+        OMX_BOOL iOMXComponentCanHandleIncompleteFrames;
+} PV_OMXComponentCapabilityFlagsType;
+
 
 /* =================================================================================== */
 /*
@@ -576,8 +560,10 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     
     /** Stop Codec Command Sent Flag*/
     OMX_U8 bStopSent;
+
+    // Flag to set when mutexes are initialized
+    OMX_BOOL bMutexInitialized;
     
-#ifndef UNDER_CE
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -593,21 +579,20 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-    
-    OMX_S8 nUnhandledFillThisBuffers;
-    OMX_S8 nUnhandledEmptyThisBuffers;
+
+    pthread_mutex_t codecFlush_mutex;
+    pthread_cond_t codecFlush_threshold;
+    OMX_U8 codecFlush_waitingsignal;
+
+    pthread_mutex_t bufferReturned_mutex;
+    pthread_cond_t bufferReturned_condition;
+
+    OMX_U32 nUnhandledFillThisBuffers;
+    OMX_U32 nHandledFillThisBuffers;
+    OMX_U32 nUnhandledEmptyThisBuffers;
+    OMX_U32 nHandledEmptyThisBuffers;
     OMX_BOOL bFlushOutputPortCommandPending;
     OMX_BOOL bFlushInputPortCommandPending;
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-#endif    
     OMX_U16 nRuntimeOutputBuffers;    
   
     OMX_U8 PendingPausedBufs;
@@ -645,10 +630,12 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
 
     OMX_BOOL bPreempted;
     OMX_BOOL bFrameLost;
-
+    OMX_BOOL DSPMMUFault;
     /** Flag to mark RTSP**/
     OMX_U8 using_rtsp;  
     
+    PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
+
     struct OMX_TI_Debug dbg;    
 
 } WBAMR_DEC_COMPONENT_PRIVATE;
@@ -664,6 +651,6 @@ typedef struct WBAMR_DEC_COMPONENT_PRIVATE
 
  */
 /*=======================================================================*/
-void SignalIfAllBuffersAreReturned(WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate);
+void SignalIfAllBuffersAreReturned(WBAMR_DEC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U8 counterport);
 
 #endif /* OMX_WBAMR_DECODER_H */

@@ -95,7 +95,7 @@ FILE *fpRes = NULL;
 
 /* ======================================================================= */
 /**
- * @def    APP_MEMDEBUG    This Macro turns On the logic to detec memory
+ * @def    APP_MEMDEBUG    This Macro turns On the LOGIc to detec memory
  *                         leaks on the App. To debug the component,
  *                         MP3DEC_MEMDEBUG must be defined.
  */

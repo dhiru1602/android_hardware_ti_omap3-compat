@@ -250,7 +250,7 @@
 
 /* ========================================================================== */
 /**
- * @def    _ERROR_PROPAGATION__              Allow Logic to Detec Arm Errors
+ * @def    _ERROR_PROPAGATION__              Allow LOGIc to Detec Arm Errors
  */
 /* ========================================================================== */
 /*#define _ERROR_PROPAGATION__ * 0j0 non iLBC */

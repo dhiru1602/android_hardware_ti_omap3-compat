@@ -43,7 +43,7 @@
 *! Revision History
 *! ===================================
 *!
-*! 22-May-2006 mf: Revisions appear in reverse chronological order;
+*! 22-May-2006 mf: Revisions appear in reverse chronoLOGIcal order;
 *! that is, newest first.  The date format is dd-Mon-yyyy.
 * ================================================================================= */
 

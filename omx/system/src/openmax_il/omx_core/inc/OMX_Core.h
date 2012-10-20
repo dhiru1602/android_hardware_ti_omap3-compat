@@ -429,7 +429,7 @@ typedef struct OMX_BUFFERHEADERTYPE
                                      optional entry and not all components
                                      will update it.*/
  OMX_TICKS nTimeStamp;          /**< Timestamp corresponding to the sample 
-                                     starting at the first logical sample 
+                                     starting at the first LOGIcal sample 
                                      boundary in the buffer. Timestamps of 
                                      successive samples within the buffer may
                                      be inferred by adding the duration of the 

@@ -26,7 +26,7 @@
 #include <OMX_TI_Debug.h>
 #include "LCML_DspCodec.h"
 #include "OMX_AacEncoder.h"
-
+#include "usn.h"
 #ifdef RESOURCE_MANAGER_ENABLED
 #include <ResourceManagerProxyAPI.h>
 #endif
@@ -50,6 +50,9 @@
 #ifdef ANDROID
     #undef LOG_TAG
     #define LOG_TAG "OMX_AACENC"
+
+/* PV opencore capability custom parameter index */
+    #define PV_OMX_COMPONENT_CAPABILITY_TYPE_INDEX 0xFF7A347
 #endif
 
 #ifdef __PERF_INSTRUMENTATION__
@@ -100,7 +103,6 @@
 #define AACENC_ERROR
 
 
-#ifndef UNDER_CE
 #ifdef  AACENC_ERROR
      #define AACENC_EPRINT(...) fprintf(stderr,__VA_ARGS__)
 #else
@@ -114,36 +116,19 @@
      #define AACENC_DPRINT(...)
 #endif
 
-#else /*UNDER_CE*/ 
-
-#ifdef  AACENC_DEBUG
- #define AACENC_DPRINT(STR, ARG...) printf()
-#else
-#endif
-
-#endif /*UNDER_CE*/ 
-
 /* ======================================================================= */
 /**
  * @def    AACENC_USN_DLL_NAME   USN DLL name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define AACENC_USN_DLL_NAME "\\windows\\usn.dll64P"
-#else
 #define AACENC_USN_DLL_NAME "usn.dll64P"
-#endif
 
 /* ======================================================================= */
 /**
  * @def    AACENC_DLL_NAME   AAC Enc Encoder socket node DLL name
  */
 /* ======================================================================= */
-#ifdef UNDER_CE
-#define AACENC_DLL_NAME "\\windows\\mpeg4aacenc_sn.dll64P"
-#else
 #define AACENC_DLL_NAME "mpeg4aacenc_sn.dll64P"
-#endif
 
 typedef struct 
 {
@@ -155,6 +140,19 @@ typedef struct
     unsigned long unNumFramesEncoded;
     unsigned long unFrameSizes[MPEG4AACENC_MAX_OUTPUT_FRAMES];
 }AACENC_UAlgOutBufParamStruct;
+
+
+typedef struct PV_OMXComponentCapabilityFlagsType
+{
+        ////////////////// OMX COMPONENT CAPABILITY RELATED MEMBERS (for opencore compatability)
+        OMX_BOOL iIsOMXComponentMultiThreaded;
+        OMX_BOOL iOMXComponentSupportsExternalOutputBufferAlloc;
+        OMX_BOOL iOMXComponentSupportsExternalInputBufferAlloc;
+        OMX_BOOL iOMXComponentSupportsMovableInputBuffers;
+        OMX_BOOL iOMXComponentSupportsPartialFrames;
+        OMX_BOOL iOMXComponentNeedsNALStartCode;
+        OMX_BOOL iOMXComponentCanHandleIncompleteFrames;
+} PV_OMXComponentCapabilityFlagsType;
 
 /*This enum must not be changed.*/
 typedef enum COMP_PORT_TYPE 
@@ -249,13 +247,6 @@ typedef struct MPEG4AACENC_UALGParams
 
 } MPEG4AACENC_UALGParams;
 
-typedef enum {
-    IUALG_CMD_STOP          = 0,
-    IUALG_CMD_PAUSE         = 1,
-    IUALG_CMD_GETSTATUS     = 2,
-    IUALG_CMD_SETSTATUS     = 3,    
-    IUALG_CMD_USERCMDSTART  = 100
-}IUALG_Cmd;
 
 typedef enum {
     IAUDIO_BLOCK=0,
@@ -284,28 +275,6 @@ struct _BUFFERLIST
     BUFFERLIST *pNextBuf;
     BUFFERLIST *pPrevBuf;
 };
-
-#ifdef UNDER_CE
-    #ifndef _OMX_EVENT_
-        #define _OMX_EVENT_
-        typedef struct OMX_Event {
-            HANDLE event;
-        } OMX_Event;
-    #endif
-    int OMX_CreateEvent(OMX_Event *event);
-    int OMX_SignalEvent(OMX_Event *event);
-    int OMX_WaitForEvent(OMX_Event *event);
-    int OMX_DestroyEvent(OMX_Event *event);
-#endif
-
-/* ======================================================================= */
-/**
- * pthread variable to indicate OMX returned all buffers to app
- */
-/* ======================================================================= */
-pthread_mutex_t bufferReturned_mutex;
-pthread_cond_t bufferReturned_condition;
-
 
 typedef struct AACENC_COMPONENT_PRIVATE 
 {
@@ -520,7 +489,7 @@ typedef struct AACENC_COMPONENT_PRIVATE
 
     OMX_BUFFERHEADERTYPE *LastOutputBufferHdrQueued;
     
-#ifndef UNDER_CE
+    OMX_U32 bMutexInit;
     pthread_mutex_t AlloBuf_mutex;    
     pthread_cond_t AlloBuf_threshold;
     OMX_U8 AlloBuf_waitingsignal;
@@ -540,24 +509,15 @@ typedef struct AACENC_COMPONENT_PRIVATE
     pthread_mutex_t InIdle_mutex;
     pthread_cond_t InIdle_threshold;
     OMX_U8 InIdle_goingtoloaded;
-    
-    OMX_U8 nUnhandledFillThisBuffers;
-    OMX_U8 nUnhandledEmptyThisBuffers;
+    /* pthread variable to indicate OMX returned all buffers to app*/
+    pthread_mutex_t bufferReturned_mutex;
+    pthread_cond_t bufferReturned_condition;
+
+    OMX_U8 nHandledFillThisBuffers;
+    OMX_U8 nHandledEmptyThisBuffers;
     OMX_BOOL bFlushOutputPortCommandPending;
     OMX_BOOL bFlushInputPortCommandPending;
     
-#else
-    OMX_Event AlloBuf_event;
-    OMX_U8 AlloBuf_waitingsignal;
-    
-    OMX_Event InLoaded_event;
-    OMX_U8 InLoaded_readytoidle;
-    
-    OMX_Event InIdle_event;
-    OMX_U8 InIdle_goingtoloaded; 
-
-    
-#endif
     OMX_BOOL bLoadedCommandPending;
     OMX_BOOL bIsInvalidState;
     void* PtrCollector[6];
@@ -571,6 +531,7 @@ typedef struct AACENC_COMPONENT_PRIVATE
 
     OMX_BOOL bCodecDestroyed;
     OMX_BOOL bGotLCML;
+    OMX_BOOL MMUFault;
     
     OMX_STRING* sDeviceString;
     OMX_BOOL bFirstOutputBuffer;
@@ -587,12 +548,9 @@ typedef struct AACENC_COMPONENT_PRIVATE
 
     OMX_TICKS temp_TS;
 
-    struct OMX_TI_Debug dbg;
+    PV_OMXComponentCapabilityFlagsType iPVCapabilityFlags;
 
-    /* Reference count for pending state change requests */
-    OMX_U32 nPendingStateChangeRequests;
-    pthread_mutex_t mutexStateChangeRequest;
-    pthread_cond_t StateChangeCondition;
+    struct OMX_TI_Debug dbg;
 
 } AACENC_COMPONENT_PRIVATE;
 
@@ -646,13 +604,7 @@ OMX_ERRORTYPE AACENCWriteConfigHeader(AACENC_COMPONENT_PRIVATE *pComponentPrivat
 void AACENC_ResourceManagerCallback(RMPROXY_COMMANDDATATYPE cbData);
 #endif
 
-#ifndef UNDER_CE
 OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#else
-/*  WinCE Implicit Export Syntax */
-#define OMX_EXPORT __declspec(dllexport)
-OMX_EXPORT OMX_ERRORTYPE OMX_ComponentInit (OMX_HANDLETYPE hComp);
-#endif
 
 
 OMX_ERRORTYPE AACENC_StartComponentThread(OMX_HANDLETYPE pHandle);
@@ -661,25 +613,18 @@ OMX_ERRORTYPE AACENC_StopComponentThread(OMX_HANDLETYPE pHandle);
 
 OMX_ERRORTYPE AACENC_FreeCompResources(OMX_HANDLETYPE pComponent);
 
-OMX_ERRORTYPE AddStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate);
-OMX_ERRORTYPE RemoveStateTransition(AACENC_COMPONENT_PRIVATE* pComponentPrivate, OMX_BOOL bEnableSignal);
-
 /*  =========================================================================*/
-/**  func    AACENC_HandleUSNError
- *
- *  desc    Handles error messages returned by the dsp
- *
- *@return n/a
- */
+/*  func    AACENC_HandleUSNError
+*
+*  desc    Handles error messages returned by the dsp
+*
+*@return n/a
+*/
 /*  =========================================================================*/
 void AACENC_HandleUSNError (AACENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32 arg);
 
-
-#endif
-
-
 /*=======================================================================*/
-/** @fn SignalIfAllBuffersAreReturned
+/** @fn AACENC_SignalIfAllBuffersAreReturned
  * @brief Sends pthread signal to indicate OMX has returned all buffers to app
  *
  * @param  none
@@ -688,18 +633,22 @@ void AACENC_HandleUSNError (AACENC_COMPONENT_PRIVATE *pComponentPrivate, OMX_U32
  *
  */
 /*=======================================================================*/
-void SignalIfAllBuffersAreReturned(AACENC_COMPONENT_PRIVATE *pComponentPrivate);
+void AACENC_SignalIfAllBuffersAreReturned(AACENC_COMPONENT_PRIVATE *pComponentPrivate,
+                                          OMX_U8 counterport);
 
-/* ====================================================================== */
-/*@AACENC_IncrementBufferCounterByOne() This function is used by the component
- * to atomically increment some input or output buffer counter
- *
- * @param mutex pointer to mutex for synchronizing the value change on
- *              the counter
- * @param counter the buffer counter to be changed
- *
- * @post the buffer counter's value will be incremented by one.
- * @return None
- */
-/* ====================================================================== */
-void AACENC_IncrementBufferCounterByOne(pthread_mutex_t* mutex, OMX_U32 *counter);
+/**
+* @AACENC_waitForAllBuffersToReturn This function waits for all buffers to return
+*
+* @param AACENC_COMPONENT_PRIVATE *pComponentPrivate
+*
+* @return None
+*/
+void AACENC_waitForAllBuffersToReturn(
+                                      AACENC_COMPONENT_PRIVATE *pComponentPrivate);
+
+void AACENC_FatalErrorRecover(AACENC_COMPONENT_PRIVATE *pComponentPrivate);
+
+#endif
+
+
+

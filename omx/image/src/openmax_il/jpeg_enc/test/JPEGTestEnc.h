@@ -37,7 +37,7 @@
 *! Revision History
 *! ===================================
 *!
-*! 22-May-2006 mf: Revisions appear in reverse chronological order;
+*! 22-May-2006 mf: Revisions appear in reverse chronoLOGIcal order;
 *! that is, newest first.  The date format is dd-Mon-yyyy.
 * ================================================================================= */
 #ifndef OMX_JPEGTEST_H
@@ -102,11 +102,8 @@ typedef struct JPEGE_EVENTPRIVATE {
 
 
 /*#define OMX_DEB*/
-#ifdef OMX_DEB
     #define PRINT(...) fprintf(stdout,__VA_ARGS__)
-#else
-    #define PRINT(...)
-#endif
+
 
 #define DSP_MMU_FAULT_HANDLING
 

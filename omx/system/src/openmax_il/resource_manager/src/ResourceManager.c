@@ -44,7 +44,7 @@
 * ============================================================================= */
 #include <unistd.h>     // for sleep
 #include <stdlib.h>     // for calloc
-#include <sys/time.h>   // time is part of the select logic
+#include <sys/time.h>   // time is part of the select LOGIc
 #include <sys/types.h>  // for opening files
 #include <sys/ioctl.h>  // for ioctl support
 #include <sys/file.h>
